@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Speed Typer</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
+        #game-area, #name-setup { margin: 20px auto; max-width: 500px; padding: 20px; border: 1px solid #ccc; }
+        #quote-display { font-size: 1.2rem; margin-bottom: 20px; color: #333; }
+        #quote-input { width: 100%; height: 50px; font-size: 1.2rem; }
+        .hidden { display: none; }
+        #scoreboard { background: #f9f9f9; padding: 10px; margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+    <h1>Typing Speed Challenge</h1>
+    <h3 id="welcome-message"></h3>
+
+    <div id="name-setup" class="hidden">
+        <p>Looks like you are on a new computer! What is your name?</p>
+        <input type="text" id="username-input" placeholder="Enter your nickname...">
+        <button onclick="saveName()">Save & Play</button>
+    </div>
+
+    <div id="game-area" class="hidden">
+        <div id="quote-display">The quick brown fox jumps over the lazy dog.</div>
+        <textarea id="quote-input" placeholder="Start typing here to begin..."></textarea>
+        <h2>WPM: <span id="wpm-display">0</span></h2>
+        <h2>Time: <span id="time-display">0</span>s</h2>
+        <button onclick="resetGame()">Restart Game</button>
+    </div>
+
+    <div id="scoreboard" class="hidden">
+        <h3>🏆 Global Leaderboard 🏆</h3>
+        <ul id="leaderboard-list" style="list-style: none; padding: 0;">
+            </ul>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
