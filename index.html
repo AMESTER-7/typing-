@@ -271,13 +271,26 @@ function finishGame(wpm) {
     document.getElementById('final-accuracy').textContent = accuracy;
     document.getElementById('results-modal').classList.remove('hidden');
 
-    db.ref('leaderboard').push({
-        player_name: playerName,
-        wpm: wpm,
-        accuracy: accuracy,
-        timestamp: Date.now()
+    // Reference to this specific player's record
+    // We sanitize the name by removing dots, etc., as Firebase keys can't have them
+    const safePlayerKey = playerName.replace(/[.#$\[\]]/g, "_");
+    const playerRef = db.ref('leaderboard/' + safePlayerKey);
+
+    playerRef.once('value').then((snapshot) => {
+        const data = snapshot.val();
+        
+        // Only update if the record doesn't exist OR if the new WPM is higher
+        if (!data || wpm > data.wpm) {
+            playerRef.set({
+                player_name: playerName,
+                wpm: wpm,
+                accuracy: accuracy,
+                timestamp: Date.now()
+            });
+        }
     });
 }
+
 
 function playAgain() {
     document.getElementById('results-modal').classList.add('hidden');
