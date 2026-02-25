@@ -122,206 +122,225 @@
 
     <script>
         // --- FIREBASE CONFIGURATION ---
-        const firebaseConfig = {
-  apiKey: "AIzaSyB3ZwWo8df2_8YKkeupwgWj5oA2OWlXOuY",
-  authDomain: "typing-game-2ae52.firebaseapp.com",
-  databaseURL: "https://typing-game-2ae52-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "typing-game-2ae52",
-  storageBucket: "typing-game-2ae52.firebasestorage.app",
-  messagingSenderId: "343867373599",
-  appId: "1:343867373599:web:8b3a96de4b369c1963fd2a"
+const firebaseConfig = {
+    apiKey: "AIzaSyB3ZwWo8df2_8YKkeupwgWj5oA2OWlXOuY",
+    authDomain: "typing-game-2ae52.firebaseapp.com",
+    databaseURL: "https://typing-game-2ae52-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "typing-game-2ae52",
+    storageBucket: "typing-game-2ae52.firebasestorage.app",
+    messagingSenderId: "343867373599",
+    appId: "1:343867373599:web:8b3a96de4b369c1963fd2a"
 };
 
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
+// Initialize Firebase
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
+const db = firebase.database();
 
-        // --- GAME STATE ---
-        const quotes = [
-            { text: "The quick brown fox jumps over the lazy dog.", category: "Classic" },
-            { text: "First, solve the problem. Then, write the code.", category: "Dev" },
-            { text: "Code is like humor. When you have to explain it, it's bad.", category: "Dev" },
-            { text: "In the middle of difficulty lies opportunity.", category: "Wisdom" },
-            { text: "Stay hungry, stay foolish, and keep pushing forward.", category: "Wisdom" }
-        ];
+// --- GAME STATE ---
+const quotes = [
+    { text: "The quick brown fox jumps over the lazy dog.", category: "Classic" },
+    { text: "First, solve the problem. Then, write the code.", category: "Dev" },
+    { text: "Code is like humor. When you have to explain it, it's bad.", category: "Dev" },
+    { text: "In the middle of difficulty lies opportunity.", category: "Wisdom" },
+    { text: "Stay hungry, stay foolish, and keep pushing forward.", category: "Wisdom" }
+];
 
-        let playerName = localStorage.getItem('speedTyperName') || '';
-        let currentQuote = quotes[0];
-        let startTime = null;
-        let timerInterval = null;
-        let isGameActive = false;
-        let isGameComplete = false;
+let playerName = localStorage.getItem('speedTyperName') || '';
+let currentQuote = quotes[0];
+let startTime = null;
+let timerInterval = null;
+let isGameActive = false;
+let isGameComplete = false;
 
-        // --- INITIALIZATION ---
-        function init() {
-            createParticles();
-            if (playerName) {
-                showGameArea();
+// --- CORE FUNCTIONS ---
+
+function showNameSetup() {
+    document.getElementById('name-setup').classList.remove('hidden');
+    document.getElementById('game-area').classList.add('hidden');
+    document.getElementById('scoreboard').classList.add('hidden');
+}
+
+function saveName() {
+    const input = document.getElementById('username-input');
+    const name = input.value.trim();
+    
+    if (!name) {
+        input.classList.add('animate-shake');
+        setTimeout(() => input.classList.remove('animate-shake'), 300);
+        return;
+    }
+    
+    playerName = name;
+    localStorage.setItem('speedTyperName', playerName);
+    showGameArea();
+}
+
+function showGameArea() {
+    document.getElementById('name-setup').classList.add('hidden');
+    document.getElementById('game-area').classList.remove('hidden');
+    document.getElementById('scoreboard').classList.remove('hidden');
+    document.getElementById('player-name').textContent = playerName;
+    document.getElementById('player-avatar').textContent = playerName.charAt(0).toUpperCase();
+    changeQuote();
+}
+
+function changeQuote() {
+    currentQuote = quotes[Math.floor(Math.random() * quotes.length)];
+    resetGame();
+}
+
+function resetGame() {
+    clearInterval(timerInterval);
+    startTime = null;
+    isGameActive = false;
+    isGameComplete = false;
+    document.getElementById('quote-input').value = '';
+    document.getElementById('wpm-display').textContent = '0';
+    document.getElementById('time-display').textContent = '0.0';
+    document.getElementById('accuracy-display').textContent = '100%';
+    document.getElementById('progress-bar').style.width = '0%';
+    renderQuote();
+}
+
+function renderQuote() {
+    const display = document.getElementById('quote-display');
+    display.innerHTML = currentQuote.text.split('').map((char, i) => 
+        `<span class="char" id="char-${i}">${char}</span>`
+    ).join('');
+}
+
+document.getElementById('quote-input').addEventListener('input', (e) => {
+    if (isGameComplete) return;
+    
+    const val = e.target.value;
+    
+    if (!isGameActive && val.length > 0) {
+        isGameActive = true;
+        startTime = Date.now();
+        timerInterval = setInterval(() => {
+            const elapsed = (Date.now() - startTime) / 1000;
+            document.getElementById('time-display').textContent = elapsed.toFixed(1);
+        }, 100);
+    }
+
+    updateTypingVisuals(val);
+
+    if (val === currentQuote.text) {
+        const elapsed = (Date.now() - startTime) / 1000;
+        const wpm = Math.round((val.length / 5) / (elapsed / 60));
+        finishGame(wpm);
+    }
+});
+
+function updateTypingVisuals(input) {
+    const quoteText = currentQuote.text;
+    let correctCount = 0;
+
+    for (let i = 0; i < quoteText.length; i++) {
+        const charSpan = document.getElementById(`char-${i}`);
+        if (!charSpan) continue;
+
+        if (i < input.length) {
+            if (input[i] === quoteText[i]) {
+                charSpan.className = 'char char-correct';
+                correctCount++;
             } else {
-                showNameSetup();
+                charSpan.className = 'char char-incorrect';
             }
-            listenToLeaderboard();
+        } else if (i === input.length) {
+            charSpan.className = 'char char-current';
+        } else {
+            charSpan.className = 'char';
         }
+    }
 
-        function createParticles() {
-            const container = document.getElementById('particles');
-            for (let i = 0; i < 30; i++) {
-                const p = document.createElement('div');
-                p.className = 'absolute rounded-full opacity-20 bg-purple-500';
-                const size = Math.random() * 4 + 2 + 'px';
-                p.style.width = size; p.style.height = size;
-                p.style.left = Math.random() * 100 + '%';
-                p.style.top = Math.random() * 100 + '%';
-                p.style.animation = `float ${3 + Math.random() * 3}s infinite`;
-                container.appendChild(p);
-            }
-        }
+    const accuracy = Math.round((correctCount / Math.max(input.length, 1)) * 100);
+    document.getElementById('accuracy-display').textContent = accuracy + '%';
+    document.getElementById('progress-bar').style.width = (input.length / quoteText.length * 100) + '%';
+}
 
-        // --- CORE LOGIC ---
-        function saveName() {
-            const input = document.getElementById('username-input');
-            if (!input.value.trim()) {
-                input.classList.add('animate-shake');
-                setTimeout(() => input.classList.remove('animate-shake'), 300);
-                return;
-            }
-            playerName = input.value.trim();
-            localStorage.setItem('speedTyperName', playerName);
-            showGameArea();
-        }
+function finishGame(wpm) {
+    isGameComplete = true;
+    isGameActive = false;
+    clearInterval(timerInterval);
+    
+    const accuracy = document.getElementById('accuracy-display').textContent;
+    document.getElementById('final-wpm').textContent = wpm;
+    document.getElementById('final-accuracy').textContent = accuracy;
+    document.getElementById('results-modal').classList.remove('hidden');
 
-        function showGameArea() {
-            document.getElementById('name-setup').classList.add('hidden');
-            document.getElementById('game-area').classList.remove('hidden');
-            document.getElementById('scoreboard').classList.remove('hidden');
-            document.getElementById('player-name').textContent = playerName;
-            document.getElementById('player-avatar').textContent = playerName.charAt(0).toUpperCase();
-            changeQuote();
-        }
+    db.ref('leaderboard').push({
+        player_name: playerName,
+        wpm: wpm,
+        accuracy: accuracy,
+        timestamp: Date.now()
+    });
+}
 
-        function changeQuote() {
-            currentQuote = quotes[Math.floor(Math.random() * quotes.length)];
-            resetGame();
-        }
+function playAgain() {
+    document.getElementById('results-modal').classList.add('hidden');
+    changeQuote();
+}
 
-        function resetGame() {
-            clearInterval(timerInterval);
-            startTime = null;
-            isGameActive = false;
-            isGameComplete = false;
-            document.getElementById('quote-input').value = '';
-            document.getElementById('wpm-display').textContent = '0';
-            document.getElementById('time-display').textContent = '0.0';
-            document.getElementById('progress-bar').style.width = '0%';
-            renderQuote();
-        }
-
-        function renderQuote() {
-            const display = document.getElementById('quote-display');
-            display.innerHTML = currentQuote.text.split('').map((char, i) => 
-                `<span class="char" id="char-${i}">${char}</span>`
-            ).join('');
-        }
-
-        document.getElementById('quote-input').addEventListener('input', (e) => {
-            if (isGameComplete) return;
-            
-            const val = e.target.value;
-            
-            // Start Timer
-            if (!isGameActive && val.length > 0) {
-                isGameActive = true;
-                startTime = Date.now();
-                timerInterval = setInterval(() => {
-                    const elapsed = (Date.now() - startTime) / 1000;
-                    document.getElementById('time-display').textContent = elapsed.toFixed(1);
-                }, 100);
-            }
-
-            updateTypingVisuals(val);
-
-            // Completion check
-            if (val === currentQuote.text) {
-                const elapsed = (Date.now() - startTime) / 1000;
-                const wpm = Math.round((val.length / 5) / (elapsed / 60));
-                finishGame(wpm);
-            }
+function listenToLeaderboard() {
+    db.ref('leaderboard').orderByChild('wpm').limitToLast(10).on('value', (snapshot) => {
+        const list = [];
+        snapshot.forEach(child => {
+            list.push(child.val());
         });
+        list.sort((a, b) => b.wpm - a.wpm);
+        
+        const container = document.getElementById('leaderboard-list');
+        if(!container) return;
 
-        function updateTypingVisuals(input) {
-            const quoteText = currentQuote.text;
-            let correctCount = 0;
-
-            for (let i = 0; i < quoteText.length; i++) {
-                const charSpan = document.getElementById(`char-${i}`);
-                if (i < input.length) {
-                    if (input[i] === quoteText[i]) {
-                        charSpan.className = 'char char-correct';
-                        correctCount++;
-                    } else {
-                        charSpan.className = 'char char-incorrect';
-                    }
-                } else if (i === input.length) {
-                    charSpan.className = 'char char-current';
-                } else {
-                    charSpan.className = 'char';
-                }
-            }
-
-            const accuracy = Math.round((correctCount / Math.max(input.length, 1)) * 100);
-            document.getElementById('accuracy-display').textContent = accuracy + '%';
-            document.getElementById('progress-bar').style.width = (input.length / quoteText.length * 100) + '%';
-        }
-
-        function finishGame(wpm) {
-            isGameComplete = true;
-            isGameActive = false;
-            clearInterval(timerInterval);
-            
-            const accuracy = document.getElementById('accuracy-display').textContent;
-            document.getElementById('final-wpm').textContent = wpm;
-            document.getElementById('final-accuracy').textContent = accuracy;
-            document.getElementById('results-modal').classList.remove('hidden');
-
-            // Save to Firebase
-            db.ref('leaderboard').push({
-                player_name: playerName,
-                wpm: wpm,
-                accuracy: accuracy,
-                timestamp: Date.now()
-            });
-        }
-
-        function playAgain() {
-            document.getElementById('results-modal').classList.add('hidden');
-            changeQuote();
-        }
-
-        function listenToLeaderboard() {
-            db.ref('leaderboard').orderByChild('wpm').limitToLast(10).on('value', (snapshot) => {
-                const list = [];
-                snapshot.forEach(child => list.push(child.val()));
-                list.sort((a, b) => b.wpm - a.wpm);
-                
-                const container = document.getElementById('leaderboard-list');
-                container.innerHTML = list.map((entry, i) => `
-                    <div class="flex items-center justify-between p-4 bg-slate-800/40 rounded-xl border border-white/5">
-                        <div class="flex items-center gap-4">
-                            <span class="text-xl font-bold w-8">${i + 1}.</span>
-                            <div>
-                                <p class="font-bold text-cyan-400">${entry.player_name}</p>
-                                <p class="text-xs text-purple-300">${entry.accuracy} accuracy</p>
-                            </div>
-                        </div>
-                        <div class="text-right">
-                            <span class="text-2xl font-black">${entry.wpm}</span>
-                            <span class="text-xs block text-purple-300">WPM</span>
-                        </div>
+        container.innerHTML = list.map((entry, i) => `
+            <div class="flex items-center justify-between p-4 bg-slate-800/40 rounded-xl border border-white/5">
+                <div class="flex items-center gap-4">
+                    <span class="text-xl font-bold w-8">${i + 1}.</span>
+                    <div>
+                        <p class="font-bold text-cyan-400">${entry.player_name}</p>
+                        <p class="text-xs text-purple-300">${entry.accuracy} accuracy</p>
                     </div>
-                `).join('');
-            });
-        }
+                </div>
+                <div class="text-right">
+                    <span class="text-2xl font-black">${entry.wpm}</span>
+                    <span class="text-xs block text-purple-300">WPM</span>
+                </div>
+            </div>
+        `).join('');
+    });
+}
 
-        init();
+function createParticles() {
+    const container = document.getElementById('particles');
+    if(!container) return;
+    for (let i = 0; i < 30; i++) {
+        const p = document.createElement('div');
+        p.className = 'absolute rounded-full opacity-20 bg-purple-500';
+        const size = Math.random() * 4 + 2 + 'px';
+        p.style.width = size; p.style.height = size;
+        p.style.left = Math.random() * 100 + '%';
+        p.style.top = Math.random() * 100 + '%';
+        p.style.animation = `float ${3 + Math.random() * 3}s infinite`;
+        container.appendChild(p);
+    }
+}
+
+// --- START EVERYTHING ---
+function init() {
+    createParticles();
+    if (playerName) {
+        showGameArea();
+    } else {
+        showNameSetup();
+    }
+    listenToLeaderboard();
+    console.log("Game Initialized!");
+}
+
+init();
     </script>
 </body>
 </html>
