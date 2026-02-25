@@ -60,6 +60,11 @@
                     </div>
                     <button onclick="changeQuote()" class="px-4 py-2 bg-purple-600/50 hover:bg-purple-500/50 rounded-lg transition-all">🔄 New Quote</button>
                 </div>
+                <div class="flex justify-center gap-4 mb-6">
+    <button onclick="setDuration(15)" class="duration-btn px-4 py-1 rounded-full border border-purple-500/30 hover:bg-purple-500/20 transition-all text-sm">15s</button>
+    <button onclick="setDuration(30)" class="duration-btn px-4 py-1 rounded-full border border-purple-500/30 hover:bg-purple-500/20 bg-purple-500/40 transition-all text-sm">30s</button>
+    <button onclick="setDuration(60)" class="duration-btn px-4 py-1 rounded-full border border-purple-500/30 hover:bg-purple-500/20 transition-all text-sm">60s</button>
+</div>
 
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                     <div class="glass-card rounded-2xl p-4 text-center">
@@ -204,11 +209,28 @@ function resetGame() {
     renderQuote();
 }
 
+let gameDuration = 30; // Default
+
 function renderQuote() {
     const display = document.getElementById('quote-display');
-    display.innerHTML = currentQuote.text.split('').map((char, i) => 
+    // regex: lowercase everything and remove anything that isn't a-z or a space
+    const cleanText = currentQuote.text.toLowerCase().replace(/[^a-z ]/g, "");
+    
+    // Update the currentQuote.text so the comparison logic stays correct
+    currentQuote.processedText = cleanText;
+
+    display.innerHTML = cleanText.split('').map((char, i) => 
         `<span class="char" id="char-${i}">${char}</span>`
     ).join('');
+}
+        
+function setDuration(seconds) {
+    gameDuration = seconds;
+    // Update UI buttons visual state
+    document.querySelectorAll('.duration-btn').forEach(btn => {
+        btn.classList.toggle('bg-purple-500/40', btn.innerText.includes(seconds));
+    });
+    resetGame();
 }
 
 document.getElementById('quote-input').addEventListener('input', (e) => {
@@ -219,11 +241,28 @@ document.getElementById('quote-input').addEventListener('input', (e) => {
     if (!isGameActive && val.length > 0) {
         isGameActive = true;
         startTime = Date.now();
+        let timeLeft = gameDuration;
+
         timerInterval = setInterval(() => {
             const elapsed = (Date.now() - startTime) / 1000;
-            document.getElementById('time-display').textContent = elapsed.toFixed(1);
+            timeLeft = gameDuration - elapsed;
+            
+            if (timeLeft <= 0) {
+                document.getElementById('time-display').textContent = "0.0";
+                const wpm = Math.round((val.length / 5) / (gameDuration / 60));
+                finishGame(wpm);
+            } else {
+                document.getElementById('time-display').textContent = timeLeft.toFixed(1);
+            }
         }, 100);
     }
+
+    updateTypingVisuals(val);
+    
+    // Monkeytype behavior: If they finish the quote before time is up, 
+    // you could either end the game or just generate a new quote.
+    // For now, let's just let the timer be the boss.
+});
 
     updateTypingVisuals(val);
 
