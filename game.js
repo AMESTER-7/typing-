@@ -1,4 +1,27 @@
-// --- 1. USER SETUP (No Sign-in Logic) ---
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyB3ZwWo8df2_8YKkeupwgWj5oA2OWlXOuY",
+  authDomain: "typing-game-2ae52.firebaseapp.com",
+  databaseURL: "https://typing-game-2ae52-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "typing-game-2ae52",
+  storageBucket: "typing-game-2ae52.firebasestorage.app",
+  messagingSenderId: "343867373599",
+  appId: "1:343867373599:web:8b3a96de4b369c1963fd2a"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// --- 1. USER SETUP ---
 let currentUser = localStorage.getItem('typingGameUser');
 
 if (!currentUser) {
@@ -33,7 +56,6 @@ let timer, startTime;
 let gameActive = false;
 
 quoteInputElement.addEventListener('input', () => {
-    // Start timer on first keystroke
     if (!gameActive) {
         startTimer();
         gameActive = true;
@@ -46,11 +68,9 @@ quoteInputElement.addEventListener('input', () => {
     arrayQuote.forEach((characterSpan, index) => {
         const character = arrayValue[index];
         if (character == null) {
-            correct = false; // Haven't typed it yet
-        } else if (character === arrayQuote[index]) {
-            // They typed the right character (You can add CSS colors here later!)
-        } else {
-            correct = false; // They made a mistake
+            correct = false; 
+        } else if (character !== arrayQuote[index]) {
+            correct = false; 
         }
     });
 
@@ -70,20 +90,20 @@ function startTimer() {
 function finishGame() {
     clearInterval(timer);
     gameActive = false;
+    quoteInputElement.disabled = true;
     
-    // Calculate WPM: (Total characters / 5) / time in minutes
     const timeInSeconds = Math.floor((new Date() - startTime) / 1000);
     const timeInMinutes = timeInSeconds / 60;
     const totalChars = quoteInputElement.value.length;
     
-    // Prevent divide by zero if they somehow finish instantly
     const wpm = timeInMinutes > 0 ? Math.round((totalChars / 5) / timeInMinutes) : 0; 
     wpmElement.innerText = wpm;
 
-    quoteInputElement.disabled = true;
-
-    // TODO: Send WPM and currentUser to Firebase Database here!
-    console.log(`Sending to Database: ${currentUser} scored ${wpm} WPM`);
+    // --- SEND SCORE TO FIREBASE ---
+    db.ref('leaderboard').push({
+        name: currentUser,
+        wpm: wpm
+    });
 }
 
 function resetGame() {
@@ -94,3 +114,31 @@ function resetGame() {
     clearInterval(timer);
     gameActive = false;
 }
+
+// --- 3. LEADERBOARD LOGIC (READING FROM FIREBASE) ---
+const leaderboardList = document.getElementById('leaderboard-list');
+
+// This listens to the database in real-time!
+db.ref('leaderboard').orderByChild('wpm').limitToLast(10).on('value', (snapshot) => {
+    let scores = [];
+    
+    // Grab all scores from the database
+    snapshot.forEach((childSnapshot) => {
+        scores.push(childSnapshot.val());
+    });
+
+    // Sort them from highest WPM to lowest
+    scores.sort((a, b) => b.wpm - a.wpm);
+
+    // Clear the current list
+    leaderboardList.innerHTML = '';
+
+    // Create HTML for each score
+    scores.forEach((score, index) => {
+        const li = document.createElement('li');
+        li.style.padding = "5px";
+        li.style.borderBottom = "1px solid #ddd";
+        li.innerHTML = `<strong>#${index + 1}</strong> ${score.name} - <strong>${score.wpm} WPM</strong>`;
+        leaderboardList.appendChild(li);
+    });
+});
