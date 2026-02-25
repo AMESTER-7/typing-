@@ -1,44 +1,586 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Speed Typer</title>
-    <style>
-        body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
-        #game-area, #name-setup { margin: 20px auto; max-width: 500px; padding: 20px; border: 1px solid #ccc; }
-        #quote-display { font-size: 1.2rem; margin-bottom: 20px; color: #333; }
-        #quote-input { width: 100%; height: 50px; font-size: 1.2rem; }
-        .hidden { display: none; }
-        #scoreboard { background: #f9f9f9; padding: 10px; margin-top: 20px; }
+<!doctype html>
+<html lang="en" class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Speed Typer Pro</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="/_sdk/element_sdk.js"></script>
+  <script src="/_sdk/data_sdk.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&amp;family=Space+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
+  <style>
+        @keyframes gradient-shift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.3); }
+            50% { box-shadow: 0 0 40px rgba(99, 102, 241, 0.6); }
+        }
+        @keyframes typing-cursor {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+        @keyframes slide-up {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes scale-in {
+            from { opacity: 0; transform: scale(0.8); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        @keyframes confetti {
+            0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(-100px) rotate(720deg); opacity: 0; }
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        .animate-gradient { 
+            background-size: 200% 200%; 
+            animation: gradient-shift 8s ease infinite; 
+        }
+        .animate-float { animation: float 3s ease-in-out infinite; }
+        .animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
+        .animate-cursor { animation: typing-cursor 1s infinite; }
+        .animate-slide-up { animation: slide-up 0.5s ease-out forwards; }
+        .animate-scale-in { animation: scale-in 0.3s ease-out forwards; }
+        .animate-confetti { animation: confetti 1s ease-out forwards; }
+        .animate-shake { animation: shake 0.3s ease-in-out; }
+        .char-correct { color: #10b981; }
+        .char-incorrect { color: #ef4444; text-decoration: underline; }
+        .char-current { background: rgba(99, 102, 241, 0.3); border-radius: 2px; }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .neon-text {
+            text-shadow: 0 0 10px currentColor, 0 0 20px currentColor, 0 0 30px currentColor;
+        }
     </style>
-</head>
-<body>
-
-    <h1>Typing Speed Challenge</h1>
-    <h3 id="welcome-message"></h3>
-
-    <div id="name-setup" class="hidden">
-        <p>Looks like you are on a new computer! What is your name?</p>
-        <input type="text" id="username-input" placeholder="Enter your nickname...">
-        <button onclick="saveName()">Save & Play</button>
+  <style>body { box-sizing: border-box; }</style>
+ </head>
+ <body class="h-full m-0 overflow-auto">
+  <div id="app-container" class="min-h-full bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 animate-gradient text-white p-4 md:p-8"><!-- Floating Particles Background -->
+   <div id="particles" class="fixed inset-0 pointer-events-none overflow-hidden z-0"></div><!-- Main Content -->
+   <div class="relative z-10 max-w-4xl mx-auto"><!-- Header -->
+    <header class="text-center mb-8 animate-slide-up">
+     <h1 id="game-title" class="text-4xl md:text-6xl font-black mb-2 bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 bg-clip-text text-transparent" style="font-family: 'Orbitron', sans-serif;">⚡ Speed Typer Pro ⚡</h1>
+     <p id="welcome-text" class="text-lg text-purple-300" style="font-family: 'Space Mono', monospace;">Test your typing speed and climb the leaderboard!</p>
+    </header><!-- Name Setup Screen -->
+    <div id="name-setup" class="glass-card rounded-3xl p-8 max-w-md mx-auto animate-scale-in">
+     <div class="text-center mb-6">
+      <div class="text-6xl mb-4 animate-float">
+       🎮
+      </div>
+      <h2 class="text-2xl font-bold mb-2" style="font-family: 'Orbitron', sans-serif;">Welcome, Challenger!</h2>
+      <p class="text-purple-300">Enter your name to begin your typing journey</p>
+     </div>
+     <div class="space-y-4"><input type="text" id="username-input" class="w-full px-6 py-4 bg-slate-800/50 border-2 border-purple-500/50 rounded-xl text-white text-lg focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/30 transition-all duration-300" placeholder="Your epic username..." maxlength="20"> <button id="start-btn" onclick="saveName()" class="w-full py-4 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-xl text-xl font-bold hover:from-cyan-400 hover:to-purple-500 transform hover:scale-105 transition-all duration-300 animate-pulse-glow"> 🚀 Start Playing </button>
+     </div>
+    </div><!-- Game Area -->
+    <div id="game-area" class="hidden"><!-- Player Info Bar -->
+     <div class="glass-card rounded-2xl p-4 mb-6 flex flex-wrap items-center justify-between gap-4 animate-slide-up">
+      <div class="flex items-center gap-3">
+       <div class="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-400 to-purple-600 flex items-center justify-center text-2xl font-bold"><span id="player-avatar">?</span>
+       </div>
+       <div>
+        <p class="text-sm text-purple-300">Player</p>
+        <p id="player-name" class="font-bold text-lg">Guest</p>
+       </div>
+      </div><button onclick="changeQuote()" class="px-4 py-2 bg-purple-600/50 hover:bg-purple-500/50 rounded-lg transition-all duration-300 flex items-center gap-2"> 🔄 New Quote </button>
+     </div><!-- Stats Dashboard -->
+     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div class="glass-card rounded-2xl p-4 text-center animate-slide-up" style="animation-delay: 0.1s;">
+       <div class="text-3xl mb-1">
+        ⚡
+       </div>
+       <p class="text-3xl font-black text-cyan-400" id="wpm-display" style="font-family: 'Orbitron', sans-serif;">0</p>
+       <p class="text-sm text-purple-300">WPM</p>
+      </div>
+      <div class="glass-card rounded-2xl p-4 text-center animate-slide-up" style="animation-delay: 0.2s;">
+       <div class="text-3xl mb-1">
+        🎯
+       </div>
+       <p class="text-3xl font-black text-green-400" id="accuracy-display" style="font-family: 'Orbitron', sans-serif;">100%</p>
+       <p class="text-sm text-purple-300">Accuracy</p>
+      </div>
+      <div class="glass-card rounded-2xl p-4 text-center animate-slide-up" style="animation-delay: 0.3s;">
+       <div class="text-3xl mb-1">
+        ⏱️
+       </div>
+       <p class="text-3xl font-black text-yellow-400" id="time-display" style="font-family: 'Orbitron', sans-serif;">0.0</p>
+       <p class="text-sm text-purple-300">Seconds</p>
+      </div>
+      <div class="glass-card rounded-2xl p-4 text-center animate-slide-up" style="animation-delay: 0.4s;">
+       <div class="text-3xl mb-1">
+        📝
+       </div>
+       <p class="text-3xl font-black text-pink-400" id="chars-display" style="font-family: 'Orbitron', sans-serif;">0</p>
+       <p class="text-sm text-purple-300">Characters</p>
+      </div>
+     </div><!-- Quote Display -->
+     <div class="glass-card rounded-3xl p-6 md:p-8 mb-6 animate-slide-up" style="animation-delay: 0.5s;">
+      <div class="flex items-center justify-between mb-4"><span class="text-sm text-purple-300">Type the text below:</span> <span id="quote-category" class="px-3 py-1 bg-purple-600/50 rounded-full text-sm">📚 Quote</span>
+      </div>
+      <div id="quote-display" class="text-xl md:text-2xl leading-relaxed tracking-wide mb-6 p-4 bg-slate-800/50 rounded-xl" style="font-family: 'Space Mono', monospace;"><!-- Quote text will be rendered here -->
+      </div><textarea id="quote-input" class="w-full h-32 px-6 py-4 bg-slate-800/50 border-2 border-purple-500/50 rounded-xl text-white text-lg focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/30 transition-all duration-300 resize-none" style="font-family: 'Space Mono', monospace;" placeholder="Click here and start typing..."></textarea>
+     </div><!-- Progress Bar -->
+     <div class="glass-card rounded-full p-1 mb-6 animate-slide-up" style="animation-delay: 0.6s;">
+      <div id="progress-bar" class="h-3 bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500 rounded-full transition-all duration-300" style="width: 0%;"></div>
+     </div><!-- Action Buttons -->
+     <div class="flex flex-wrap justify-center gap-4 animate-slide-up" style="animation-delay: 0.7s;"><button onclick="resetGame()" class="px-8 py-3 bg-gradient-to-r from-orange-500 to-red-600 rounded-xl font-bold hover:from-orange-400 hover:to-red-500 transform hover:scale-105 transition-all duration-300"> 🔄 Restart </button> <button onclick="changeQuote()" class="px-8 py-3 bg-gradient-to-r from-green-500 to-teal-600 rounded-xl font-bold hover:from-green-400 hover:to-teal-500 transform hover:scale-105 transition-all duration-300"> ✨ New Quote </button>
+     </div>
+    </div><!-- Results Modal -->
+    <div id="results-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+     <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" onclick="closeResults()"></div>
+     <div class="relative glass-card rounded-3xl p-8 max-w-md w-full animate-scale-in">
+      <div id="confetti-container" class="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl"></div>
+      <div class="text-center relative z-10">
+       <div class="text-8xl mb-4" id="result-emoji">
+        🏆
+       </div>
+       <h2 class="text-3xl font-black mb-2" style="font-family: 'Orbitron', sans-serif;" id="result-title">Amazing!</h2>
+       <p class="text-purple-300 mb-6" id="result-message">You've completed the challenge!</p>
+       <div class="grid grid-cols-2 gap-4 mb-6">
+        <div class="bg-slate-800/50 rounded-xl p-4">
+         <p class="text-3xl font-black text-cyan-400" id="final-wpm">0</p>
+         <p class="text-sm text-purple-300">WPM</p>
+        </div>
+        <div class="bg-slate-800/50 rounded-xl p-4">
+         <p class="text-3xl font-black text-green-400" id="final-accuracy">0%</p>
+         <p class="text-sm text-purple-300">Accuracy</p>
+        </div>
+       </div>
+       <div class="flex gap-4"><button onclick="playAgain()" class="flex-1 py-3 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-xl font-bold hover:from-cyan-400 hover:to-purple-500 transition-all duration-300"> 🎮 Play Again </button> <button onclick="closeResults()" class="flex-1 py-3 bg-slate-700 hover:bg-slate-600 rounded-xl font-bold transition-all duration-300"> 📊 View Board </button>
+       </div>
+      </div>
+     </div>
+    </div><!-- Leaderboard -->
+    <div id="scoreboard" class="mt-8 glass-card rounded-3xl p-6 animate-slide-up" style="animation-delay: 0.8s;">
+     <div class="flex items-center justify-center gap-3 mb-6"><span class="text-4xl">🏆</span>
+      <h2 class="text-2xl font-black" style="font-family: 'Orbitron', sans-serif;">Global Leaderboard</h2><span class="text-4xl">🏆</span>
+     </div>
+     <div id="leaderboard-list" class="space-y-3">
+      <div class="text-center text-purple-300 py-8">
+       <div class="text-4xl mb-2">
+        🎮
+       </div>
+       <p>No scores yet. Be the first to compete!</p>
+      </div>
+     </div>
     </div>
+   </div>
+  </div>
+  <script>
+        // Configuration
+        const defaultConfig = {
+            game_title: "⚡ Speed Typer Pro ⚡",
+            welcome_text: "Test your typing speed and climb the leaderboard!",
+            background_color: "#0f172a",
+            accent_color: "#8b5cf6",
+            text_color: "#e2e8f0",
+            highlight_color: "#06b6d4",
+            button_color: "#7c3aed",
+            font_family: "Space Mono"
+        };
 
-    <div id="game-area" class="hidden">
-        <div id="quote-display">The quick brown fox jumps over the lazy dog.</div>
-        <textarea id="quote-input" placeholder="Start typing here to begin..."></textarea>
-        <h2>WPM: <span id="wpm-display">0</span></h2>
-        <h2>Time: <span id="time-display">0</span>s</h2>
-        <button onclick="resetGame()">Restart Game</button>
-    </div>
+        let config = { ...defaultConfig };
+        let leaderboardData = [];
+        let playerName = localStorage.getItem('speedTyperName') || '';
 
-    <div id="scoreboard" class="hidden">
-        <h3>🏆 Global Leaderboard 🏆</h3>
-        <ul id="leaderboard-list" style="list-style: none; padding: 0;">
-            </ul>
-    </div>
-    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-database-compat.js"></script>
-    
-    <script src="game.js"></script>
-</body>
+        // Quote Collection
+        const quotes = [
+            { text: "The quick brown fox jumps over the lazy dog.", category: "Classic" },
+            { text: "To be or not to be, that is the question.", category: "Shakespeare" },
+            { text: "In the middle of difficulty lies opportunity.", category: "Einstein" },
+            { text: "Life is what happens when you're busy making other plans.", category: "Lennon" },
+            { text: "The only way to do great work is to love what you do.", category: "Jobs" },
+            { text: "Innovation distinguishes between a leader and a follower.", category: "Jobs" },
+            { text: "Stay hungry, stay foolish, and keep pushing forward.", category: "Motivation" },
+            { text: "The future belongs to those who believe in the beauty of their dreams.", category: "Roosevelt" },
+            { text: "Success is not final, failure is not fatal: it is the courage to continue that counts.", category: "Churchill" },
+            { text: "The only thing we have to fear is fear itself.", category: "Roosevelt" },
+            { text: "Code is like humor. When you have to explain it, it's bad.", category: "Programming" },
+            { text: "First, solve the problem. Then, write the code.", category: "Programming" },
+            { text: "Experience is the name everyone gives to their mistakes.", category: "Wilde" },
+            { text: "The best time to plant a tree was twenty years ago. The second best time is now.", category: "Proverb" },
+            { text: "Believe you can and you're halfway there.", category: "Roosevelt" },
+            { text: "It does not matter how slowly you go as long as you do not stop.", category: "Confucius" },
+            { text: "Everything you've ever wanted is on the other side of fear.", category: "Motivation" },
+            { text: "The journey of a thousand miles begins with one step.", category: "Lao Tzu" },
+            { text: "What you get by achieving your goals is not as important as what you become.", category: "Thoreau" },
+            { text: "Dream big and dare to fail.", category: "Motivation" }
+        ];
+
+        // Game State
+        let currentQuote = quotes[0];
+        let startTime = null;
+        let timerInterval = null;
+        let isGameActive = false;
+        let isGameComplete = false;
+
+        // Initialize Particles
+        function createParticles() {
+            const container = document.getElementById('particles');
+            container.innerHTML = '';
+            for (let i = 0; i < 50; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'absolute rounded-full opacity-20';
+                particle.style.width = Math.random() * 6 + 2 + 'px';
+                particle.style.height = particle.style.width;
+                particle.style.background = ['#06b6d4', '#8b5cf6', '#ec4899'][Math.floor(Math.random() * 3)];
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.top = Math.random() * 100 + '%';
+                particle.style.animation = `float ${3 + Math.random() * 4}s ease-in-out infinite`;
+                particle.style.animationDelay = Math.random() * 2 + 's';
+                container.appendChild(particle);
+            }
+        }
+
+        // Initialize SDK
+        async function initializeApp() {
+            createParticles();
+            
+            // Initialize Element SDK
+            if (window.elementSdk) {
+                window.elementSdk.init({
+                    defaultConfig,
+                    onConfigChange: async (newConfig) => {
+                        config = { ...config, ...newConfig };
+                        applyConfig();
+                    },
+                    mapToCapabilities: (cfg) => ({
+                        recolorables: [
+                            {
+                                get: () => cfg.background_color || defaultConfig.background_color,
+                                set: (v) => { cfg.background_color = v; window.elementSdk.setConfig({ background_color: v }); }
+                            },
+                            {
+                                get: () => cfg.accent_color || defaultConfig.accent_color,
+                                set: (v) => { cfg.accent_color = v; window.elementSdk.setConfig({ accent_color: v }); }
+                            },
+                            {
+                                get: () => cfg.text_color || defaultConfig.text_color,
+                                set: (v) => { cfg.text_color = v; window.elementSdk.setConfig({ text_color: v }); }
+                            },
+                            {
+                                get: () => cfg.highlight_color || defaultConfig.highlight_color,
+                                set: (v) => { cfg.highlight_color = v; window.elementSdk.setConfig({ highlight_color: v }); }
+                            },
+                            {
+                                get: () => cfg.button_color || defaultConfig.button_color,
+                                set: (v) => { cfg.button_color = v; window.elementSdk.setConfig({ button_color: v }); }
+                            }
+                        ],
+                        borderables: [],
+                        fontEditable: {
+                            get: () => cfg.font_family || defaultConfig.font_family,
+                            set: (v) => { cfg.font_family = v; window.elementSdk.setConfig({ font_family: v }); }
+                        },
+                        fontSizeable: undefined
+                    }),
+                    mapToEditPanelValues: (cfg) => new Map([
+                        ["game_title", cfg.game_title || defaultConfig.game_title],
+                        ["welcome_text", cfg.welcome_text || defaultConfig.welcome_text]
+                    ])
+                });
+            }
+
+            // Initialize Data SDK
+            if (window.dataSdk) {
+                const result = await window.dataSdk.init({
+                    onDataChanged: (data) => {
+                        leaderboardData = data.sort((a, b) => b.wpm - a.wpm);
+                        renderLeaderboard();
+                    }
+                });
+                if (!result.isOk) {
+                    console.error('Failed to initialize Data SDK');
+                }
+            }
+
+            // Check for saved player
+            if (playerName) {
+                showGameArea();
+            } else {
+                showNameSetup();
+            }
+
+            applyConfig();
+            renderQuote();
+        }
+
+        function applyConfig() {
+            const titleEl = document.getElementById('game-title');
+            const welcomeEl = document.getElementById('welcome-text');
+            
+            if (titleEl) titleEl.textContent = config.game_title || defaultConfig.game_title;
+            if (welcomeEl) welcomeEl.textContent = config.welcome_text || defaultConfig.welcome_text;
+        }
+
+        // Screen Management
+        function showNameSetup() {
+            document.getElementById('name-setup').classList.remove('hidden');
+            document.getElementById('game-area').classList.add('hidden');
+            document.getElementById('scoreboard').classList.add('hidden');
+        }
+
+        function showGameArea() {
+            document.getElementById('name-setup').classList.add('hidden');
+            document.getElementById('game-area').classList.remove('hidden');
+            document.getElementById('scoreboard').classList.remove('hidden');
+            document.getElementById('player-name').textContent = playerName;
+            document.getElementById('player-avatar').textContent = playerName.charAt(0).toUpperCase();
+        }
+
+        function saveName() {
+            const input = document.getElementById('username-input');
+            const name = input.value.trim();
+            
+            if (!name) {
+                input.classList.add('animate-shake');
+                setTimeout(() => input.classList.remove('animate-shake'), 300);
+                return;
+            }
+            
+            playerName = name;
+            localStorage.setItem('speedTyperName', name);
+            showGameArea();
+        }
+
+        // Quote Management
+        function changeQuote() {
+            const randomIndex = Math.floor(Math.random() * quotes.length);
+            currentQuote = quotes[randomIndex];
+            document.getElementById('quote-category').textContent = `📚 ${currentQuote.category}`;
+            resetGame();
+        }
+
+        function renderQuote() {
+            const display = document.getElementById('quote-display');
+            display.innerHTML = currentQuote.text.split('').map((char, i) => 
+                `<span class="char" data-index="${i}">${char}</span>`
+            ).join('');
+            document.getElementById('quote-category').textContent = `📚 ${currentQuote.category}`;
+        }
+
+        // Game Logic
+        function startGame() {
+            if (!isGameActive && !isGameComplete) {
+                isGameActive = true;
+                startTime = Date.now();
+                timerInterval = setInterval(updateTimer, 100);
+            }
+        }
+
+        function updateTimer() {
+            if (!startTime) return;
+            const elapsed = (Date.now() - startTime) / 1000;
+            document.getElementById('time-display').textContent = elapsed.toFixed(1);
+        }
+
+        function calculateStats(input) {
+            const chars = document.querySelectorAll('.char');
+            let correct = 0;
+            let incorrect = 0;
+            
+            chars.forEach((char, i) => {
+                char.classList.remove('char-correct', 'char-incorrect', 'char-current');
+                if (i < input.length) {
+                    if (input[i] === char.textContent) {
+                        char.classList.add('char-correct');
+                        correct++;
+                    } else {
+                        char.classList.add('char-incorrect');
+                        incorrect++;
+                    }
+                } else if (i === input.length) {
+                    char.classList.add('char-current');
+                }
+            });
+
+            const accuracy = input.length > 0 ? Math.round((correct / input.length) * 100) : 100;
+            const elapsed = startTime ? (Date.now() - startTime) / 1000 : 0;
+            const words = correct / 5;
+            const wpm = elapsed > 0 ? Math.round((words / elapsed) * 60) : 0;
+            const progress = (input.length / currentQuote.text.length) * 100;
+
+            document.getElementById('wpm-display').textContent = wpm;
+            document.getElementById('accuracy-display').textContent = accuracy + '%';
+            document.getElementById('chars-display').textContent = input.length;
+            document.getElementById('progress-bar').style.width = Math.min(progress, 100) + '%';
+
+            return { wpm, accuracy, correct };
+        }
+
+        async function completeGame(wpm, accuracy) {
+            isGameComplete = true;
+            isGameActive = false;
+            clearInterval(timerInterval);
+
+            // Show results
+            document.getElementById('final-wpm').textContent = wpm;
+            document.getElementById('final-accuracy').textContent = accuracy + '%';
+            
+            // Set emoji and message based on performance
+            const emoji = document.getElementById('result-emoji');
+            const title = document.getElementById('result-title');
+            const message = document.getElementById('result-message');
+            
+            if (wpm >= 80) {
+                emoji.textContent = '🚀';
+                title.textContent = 'Incredible!';
+                message.textContent = 'You\'re a typing legend!';
+            } else if (wpm >= 60) {
+                emoji.textContent = '🏆';
+                title.textContent = 'Amazing!';
+                message.textContent = 'That was impressive speed!';
+            } else if (wpm >= 40) {
+                emoji.textContent = '⭐';
+                title.textContent = 'Great Job!';
+                message.textContent = 'Keep practicing to go faster!';
+            } else {
+                emoji.textContent = '💪';
+                title.textContent = 'Good Effort!';
+                message.textContent = 'Practice makes perfect!';
+            }
+
+            // Create confetti
+            createConfetti();
+            
+            // Show modal
+            document.getElementById('results-modal').classList.remove('hidden');
+
+            // Save score
+            if (window.dataSdk && leaderboardData.length < 999) {
+                const result = await window.dataSdk.create({
+                    player_name: playerName,
+                    wpm: wpm,
+                    accuracy: accuracy,
+                    timestamp: new Date().toISOString()
+                });
+                if (!result.isOk) {
+                    console.error('Failed to save score');
+                }
+            }
+        }
+
+        function createConfetti() {
+            const container = document.getElementById('confetti-container');
+            container.innerHTML = '';
+            const colors = ['#06b6d4', '#8b5cf6', '#ec4899', '#10b981', '#f59e0b'];
+            
+            for (let i = 0; i < 50; i++) {
+                const confetti = document.createElement('div');
+                confetti.className = 'absolute animate-confetti';
+                confetti.style.width = '10px';
+                confetti.style.height = '10px';
+                confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.left = Math.random() * 100 + '%';
+                confetti.style.bottom = '0';
+                confetti.style.animationDelay = Math.random() * 0.5 + 's';
+                confetti.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
+                container.appendChild(confetti);
+            }
+        }
+
+        function closeResults() {
+            document.getElementById('results-modal').classList.add('hidden');
+        }
+
+        function playAgain() {
+            closeResults();
+            changeQuote();
+        }
+
+        function resetGame() {
+            clearInterval(timerInterval);
+            startTime = null;
+            isGameActive = false;
+            isGameComplete = false;
+            
+            document.getElementById('quote-input').value = '';
+            document.getElementById('wpm-display').textContent = '0';
+            document.getElementById('accuracy-display').textContent = '100%';
+            document.getElementById('time-display').textContent = '0.0';
+            document.getElementById('chars-display').textContent = '0';
+            document.getElementById('progress-bar').style.width = '0%';
+            
+            renderQuote();
+        }
+
+        // Leaderboard
+        function renderLeaderboard() {
+            const list = document.getElementById('leaderboard-list');
+            
+            if (leaderboardData.length === 0) {
+                list.innerHTML = `
+                    <div class="text-center text-purple-300 py-8">
+                        <div class="text-4xl mb-2">🎮</div>
+                        <p>No scores yet. Be the first to compete!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const top10 = leaderboardData.slice(0, 10);
+            list.innerHTML = top10.map((score, index) => {
+                const medals = ['🥇', '🥈', '🥉'];
+                const medal = index < 3 ? medals[index] : `#${index + 1}`;
+                const isCurrentPlayer = score.player_name === playerName;
+                
+                return `
+                    <div class="flex items-center justify-between p-4 rounded-xl ${isCurrentPlayer ? 'bg-purple-600/30 border border-purple-500/50' : 'bg-slate-800/50'} transition-all duration-300 hover:bg-slate-700/50">
+                        <div class="flex items-center gap-4">
+                            <span class="text-2xl w-10 text-center">${medal}</span>
+                            <div>
+                                <p class="font-bold ${isCurrentPlayer ? 'text-cyan-400' : ''}">${score.player_name}</p>
+                                <p class="text-sm text-purple-300">${score.accuracy}% accuracy</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-2xl font-black text-cyan-400" style="font-family: 'Orbitron', sans-serif;">${score.wpm}</p>
+                            <p class="text-sm text-purple-300">WPM</p>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Event Listeners
+        document.getElementById('quote-input').addEventListener('input', function(e) {
+            const input = e.target.value;
+            
+            if (!isGameActive && !isGameComplete && input.length > 0) {
+                startGame();
+            }
+            
+            if (isGameActive) {
+                const { wpm, accuracy, correct } = calculateStats(input);
+                
+                // Check if complete
+                if (input === currentQuote.text) {
+                    completeGame(wpm, accuracy);
+                }
+            }
+        });
+
+        document.getElementById('username-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                saveName();
+            }
+        });
+
+        // Initialize
+        initializeApp();
+    </script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9d347e55201c58b9',t:'MTc3MTk5NDEwMC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
